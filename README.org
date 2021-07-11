@@ -1,0 +1,87 @@
+* gps-proxy                                                           :TOC_4:
+  - [[#overview][Overview]]
+  - [[#supported-nmea-sentences][Supported NMEA sentences]]
+    - [[#gpgga][GPGGA]]
+    - [[#gprmc][GPRMC]]
+    - [[#gpgsa][GPGSA]]
+    - [[#gpgsv][GPGSV]]
+    - [[#gpvtg][GPVTG]]
+
+** Overview
+This tool accepts NMEA data forwarded over TCP, parses a small number of NMEA sentences, and forwards them to MQTT.
+
+The configuration file is named =gps-proxy.yml=, searched in the [[https://golang.org/pkg/os/#UserConfigDir][users configuration directory]], or in /etc if not found there. The configuration looks as follows:
+
+#+BEGIN_SRC yaml
+port: 8500
+host: 10.10.10.1
+mqtt_user: username
+mqtt_password: password
+mqtt_host: mqtt.example.com
+clients:
+  - ip: 10.10.10.10
+    name: car
+  - ip: 127.0.0.1
+    name: test-access
+#+END_SRC
+
+The =host= field is optional. If omitted the service binds to =0.0.0.0=.
+
+An arbitrary number of clients can be specified. Only clients in the list may connect.
+
+Note that the protocol does not allow for proper security, so should be tunneled over a secure connection (like a VPN). The client list should not be seen as access control, but only as a method to easily support writing values of multiple clients to MQTT.
+
+Data is published under =gps-proxy/<name>/<NMEA header>/=. When mosquitto_sub is available data can be checked using =mosquitto_sub -h mqtt.example.com -t "gps-proxy/car/#=
+
+** Supported NMEA sentences
+*** [[https://docs.novatel.com/OEM7/Content/Logs/GPGGA.htm][GPGGA]]
+Topics written are:
+
+- utc, the time in UTC
+- lat_dms, the latitude in DMS format
+- lon_dms, the longitude in DMS format
+- lat_dd, the latitude in DD format
+- lon_dd, the longitude in DD format
+- quality, [[https://docs.novatel.com/OEM7/Content/Logs/GPGGA.htm#GPSQualityIndicators][quality indicator]]
+- sats, number of satellites in use
+- hdop, horizontal dilution of precision
+- alt, altitude above sea level
+- alt_unit, the unit for altitude
+*** [[https://docs.novatel.com/OEM7/Content/Logs/GPRMC.htm][GPRMC]]
+The status header is currently ignored, as are variaton and mode indicator.
+
+Topics written are:
+
+- time, the time in UTC
+- lat_dms, the latitude in DMS format
+- lon_dms, the longitude in DMS format
+- lat_dd, the latitude in DD format
+- lon_dd, the longitude in DD format
+- speed_kmh, the current speed in km/h
+- date_time, the date and time in UTC
+- date_time_local, the date and time for the systems local timezone
+*** [[https://docs.novatel.com/OEM7/Content/Logs/GPGSA.htm][GPGSA]]
+Sattelite information is currently not used.
+
+Topics written are:
+
+- field_length, the number of fields present
+- mode_ma, manual or automatic 2D/3D
+- mode_123, GPS fix status
+- pdop, position dilution of precision
+- hdop, horizontal dilution of precision
+- vdop, vertical dilution of precision
+*** [[https://docs.novatel.com/OEM7/Content/Logs/GPGSV.htm][GPGSV]]
+Topics written are:
+
+- field_length, the number of fields present
+
+Full support for this field is not implemented yet.
+*** [[https://docs.novatel.com/OEM7/Content/Logs/GPVTG.htm][GPVTG]]
+Topics written are:
+
+- track_true, track made good in degrees True
+- track_mag, track made good in degrees magnetic
+- speed_kn, speed in knots
+- speed_kmh, speed in km/h
+- mode_indicator, [[https://docs.novatel.com/OEM7/Content/Logs/GPVTG.htm#NMEAPositioningSystemModeIndicator][mode indicator]]
