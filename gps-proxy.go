@@ -204,7 +204,8 @@ func handleData(c net.Conn) {
 func main() {
 	config_dir, err := os.UserConfigDir()
 	if err != nil {
-		log.Fatal("Unable to determine user config dir")
+		fmt.Println("Unable to determine user config dir, falling back to /etc")
+		config_dir = "/etc"
 	}
 
 	user_config_path := config_dir + "/gps-proxy.yml"

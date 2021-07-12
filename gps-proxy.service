@@ -1,0 +1,10 @@
+[Unit]
+Description=GPS NMEA to MQTT proxy
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/gps-proxy
+
+[Install]
+WantedBy=multi-user.target
