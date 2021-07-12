@@ -139,6 +139,12 @@ func handleData(c net.Conn) {
 
 		line := strings.TrimSpace(string(data))
 
+		// this will be needed
+		//checksum := line[len(line)-2:]
+
+		// chop off checksum, assuming there's always a checksum
+		line = line[:len(line)-3]
+
 		if len(line) < 6 {
 			fmt.Printf("[%s] Unexpected short line: %s\n", client_name, line)
 		} else {
@@ -148,18 +154,22 @@ func handleData(c net.Conn) {
 			// TODO: cut off checksum and calculate
 			switch values[0] {
 			case "$GPGGA":
-				publish(base_topic, "GPGGA/utc", gpsTimeToUTC(values[1]))
-				publish(base_topic, "GPGGA/lat_dms", gpsDDMTo("DMS", values[2], values[3]))
-				publish(base_topic, "GPGGA/lon_dms", gpsDDMTo("DMS", values[4], values[5]))
-				publish(base_topic, "GPGGA/lat_dd", gpsDDMTo("DD", values[2], values[3]))
-				publish(base_topic, "GPGGA/lon_dd", gpsDDMTo("DD", values[4], values[5]))
-				publish(base_topic, "GPGGA/quality", values[6])
-				publish(base_topic, "GPGGA/sats", values[7])
-				publish(base_topic, "GPGGA/hdop", values[8])
-				publish(base_topic, "GPGGA/alt", values[9])
-				publish(base_topic, "GPGGA/alt_unit", values[10])
-				// undulation and differential data is ignored for now
+				if gpsDDMTo("DMS", values[2], values[3]) != "EDIR" &&
+					gpsDDMTo("DMS", values[4], values[5]) != "EDIR" {
+					publish(base_topic, "GPGGA/utc", gpsTimeToUTC(values[1]))
+					publish(base_topic, "GPGGA/lat_dms", gpsDDMTo("DMS", values[2], values[3]))
+					publish(base_topic, "GPGGA/lon_dms", gpsDDMTo("DMS", values[4], values[5]))
+					publish(base_topic, "GPGGA/lat_dd", gpsDDMTo("DD", values[2], values[3]))
+					publish(base_topic, "GPGGA/lon_dd", gpsDDMTo("DD", values[4], values[5]))
+					publish(base_topic, "GPGGA/quality", values[6])
+					publish(base_topic, "GPGGA/sats", values[7])
+					publish(base_topic, "GPGGA/hdop", values[8])
+					publish(base_topic, "GPGGA/alt", values[9])
+					publish(base_topic, "GPGGA/alt_unit", values[10])
+					// undulation and differential data is ignored for now
+				}
 			case "$GPRMC":
+				// this should only be sent with a valid fix, so skip accuracy information
 				// check status header
 				// add track true, mag var, var dir, mode ind fields
 				fmt.Printf("[%s] GPRMC: %s, %s %s speed %s\n", client_name,
