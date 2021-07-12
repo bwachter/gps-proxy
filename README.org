@@ -6,6 +6,8 @@
     - [[#gpgsa][GPGSA]]
     - [[#gpgsv][GPGSV]]
     - [[#gpvtg][GPVTG]]
+  - [[#integrations][Integrations]]
+    - [[#integrating-with-home-assistant][Integrating with Home Assistant]]
 
 ** Overview
 This tool accepts NMEA data forwarded over TCP, parses a small number of NMEA sentences, and forwards them to MQTT.
@@ -85,3 +87,63 @@ Topics written are:
 - speed_kn, speed in knots
 - speed_kmh, speed in km/h
 - mode_indicator, [[https://docs.novatel.com/OEM7/Content/Logs/GPVTG.htm#NMEAPositioningSystemModeIndicator][mode indicator]]
+** Integrations
+*** Integrating with Home Assistant
+For Home Assistant sensors need to be created individually for the mqtt platform. The following example sets up the most useful sensors. The float conversion is required to get nice line graphs for speed and altitude:
+
+#+BEGIN_SRC yaml
+sensor:
+  - platform: mqtt
+    name: Car latitude
+    state_topic: gps-proxy/car/GPRMC/lat_dd
+  - platform: mqtt
+    name: Car longitude
+    state_topic: gps-proxy/car/GPRMC/lon_dd
+  - platform: mqtt
+    name: Car speed
+    state_topic: gps-proxy/car/GPRMC/speed_kmh
+    value_template: "{{ float(value) }}"
+    unit_of_measurement: km/h
+  - platform: mqtt
+    name: Car altitude
+    state_topic: gps-proxy/car/GPGGA/alt
+    value_template: "{{ float(value) }}"
+    unit_of_measurement: m
+  - platform: mqtt
+    name: Car last update
+    state_topic: gps-proxy/car/GPRMC/date_time_local
+#+END_SRC
+
+Recording state for the date sensor probably isn't very useful, so it can be excluded from the recorder:
+
+#+BEGIN_SRC yaml
+recorder:
+  exclude:
+    entities:
+      - sensor.car_last_update
+#+END_SRC
+
+To integrate with HAs [[https://www.home-assistant.io/integrations/device_tracker/][Device Tracker]] at least creation of longitude and latitude sensors as shown above is required. Additionally the following automation needs to be set up:
+
+#+BEGIN_SRC yaml
+- alias: Update Car position
+  description: ''
+  trigger:
+  - platform: state
+    entity_id: sensor.car_latitude
+  - platform: state
+    entity_id: sensor.car_longitude
+  - platform: homeassistant
+    event: start
+  condition: []
+  action:
+  - service: device_tracker.see
+    data_template:
+      dev_id: Car
+      gps:
+      - '{{ states(''sensor.car_latitude'') }}'
+      - '{{ states(''sensor.car_longitude'') }}'
+  mode: single
+#+END_SRC
+
+This creates the tracker with cached values on HA startup, and updates it whenever latitude or longitude change. When not home progress can be followed on the map.
